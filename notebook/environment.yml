@@ -1,0 +1,13 @@
+name: dm_interview
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.8
+  - ipython
+  - pandas
+  - numpy
+  - ipykernel
+  - matplotlib
+  - rdkit
+prefix: /home/adam/miniconda3/envs/dm_interview
