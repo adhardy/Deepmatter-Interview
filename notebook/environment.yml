@@ -10,4 +10,6 @@ dependencies:
   - ipykernel
   - matplotlib
   - rdkit
+  - scipy
+  - scikit-learn
 prefix: /home/adam/miniconda3/envs/dm_interview
