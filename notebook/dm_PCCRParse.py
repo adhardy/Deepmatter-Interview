@@ -1,55 +1,25 @@
-import os
-import pathlib
-
-import xml.dom.pulldom as pulldom
-import xml.etree.ElementTree as ET
-
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import dm_utils
+import os
 
 import pandas as pd
 from typing import List,Any, Union
 
 pccr_file_ext = ".pcrr"
 
-def check_file_extension(file_path: str, extension: str): # -> bool:
-    """Checks if a file has a specific extension"""
-    if pathlib.Path(file_path).suffix != extension:
-        raise TypeError(f"{file_path} is not a .pccr file.")
-
-def none_or_equal(value1:any, value2: any):# -> bool:
-    """Returns True if the values are equal or if either value is None. Otherwise returns False."""
-    if value1 is None or value2 is None or value1 == value2:
-        return True
-    return False
-
-def get_XML_root(pccr_file_path: str, tagname: str, attribute: str = None, attribute_value: Any = None):
-    """Generator: yields XML trees matching the given tag and attribute."""
-
-    doc = pulldom.parse(pccr_file_path) # these xml files are very large, use pulldom to extract the parts we need 
-    for event, node in doc:
-        if event == pulldom.START_ELEMENT and none_or_equal(node.tagName, tagname) and none_or_equal(node.getAttribute(attribute), attribute_value):
-            doc.expandNode(node) # expand the node so we can parse it with elementree and xpath
-            yield ET.fromstring(node.toxml())  # load the xml into elementree
-
-def get_pccr_metadata(pccr_dir: str):
+def get_pccr_metadata(pccr_file_path: str):
     """Extract name, author and number of operations from a pccr files located in a directory."""
+    
+    dm_utils.check_file_extension(pccr_file_path, pccr_file_ext) # Check for correct file type
 
-    pccr_files = os.listdir(pccr_dir) # get all files in the directory
-    recipe_information = []
-
-    for pccr_file in pccr_files: # iterate over each file
-
-        check_file_extension(pccr_file, pccr_file_ext) # Check for correct file type
-        pccr_file_path = os.path.join(pccr_dir,pccr_file) # get the full path
-
-        for root in get_XML_root(pccr_file_path, tagname="recipe_version"):
-            
-            name = root.find("./recipe").attrib["name"] # use xpath to find recipe name and author
-            author = root.find("./pcml/meta/author").text
-            operations = len(root.findall("./pcml/step/group/operation")) # use xpath to find all operation tags, and then count them
-            recipe_information.append(RecipeInformation(name, author, operations, pccr_file)) # append the recipe information to a list
-            break # we don't need any more information, stop processing the file
+    for root in dm_utils.get_XML_root(pccr_file_path, tagname="recipe_version"):
+        
+        name = root.find("./recipe").attrib["name"] # use xpath to find recipe name and author
+        author = root.find("./pcml/meta/author").text
+        operations = len(root.findall("./pcml/step/group/operation")) # use xpath to find all operation tags, and then count them
+        recipe_information = (RecipeInformation(name, author, operations, os.path.basename(pccr_file_path))) # append the recipe information to a list
+        break # we don't need any more information, stop processing the file
     
     return recipe_information
 
@@ -78,14 +48,14 @@ def extract_sensor_data(pccr_file_path: str,
     if not isinstance(sensors, list):
         sensors = [sensors]
 
-    check_file_extension(pccr_file_path, pccr_file_ext) # Check for correct file type 
+    dm_utils.check_file_extension(pccr_file_path, pccr_file_ext) # Check for correct file type 
     
     data = {} # dictionary to hold the extracted data
     # === XML Parsing ===
     for sensor_name in sensors:
         sensor_data_value = []
         sensor_data_timestamp = []
-        for root in get_XML_root(pccr_file_path, tagname="sensor_data", attribute="name", attribute_value=sensor_name):
+        for root in dm_utils.get_XML_root(pccr_file_path, tagname="sensor_data", attribute="name", attribute_value=sensor_name):
 
             # find all instances of the sensor_data_record tag within this node, record the values and timestamps
             sensor_data_value += [x.text for x in root.findall("./sensor_data_record/value")] 

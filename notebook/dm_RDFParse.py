@@ -1,15 +1,10 @@
 from typing import List
 
-import rdkit
+
 from rdkit.Chem import rdChemReactions
 from rdkit import Chem
 
-class DMMol():
-    """Class to store rdkit mol objects and additional metadata about them."""
-    
-    def __init__(self, mol:rdkit.Chem.rdchem.Mol, mol_type: str):
-        self.mol = mol
-        self.mol_type = mol_type
+from dm_utils import DMMol
 
 def extract_reactions(file_path:str): # -> List[str]:
     """Extracts the reactions from a .rdf file and returns them as a list of strings."""
@@ -71,6 +66,4 @@ def get_molecules_from_rxn_list(rxn_blocks:list):
 def print_molecules_from_molecule_list(molecules: List[str]):
     
     for molecule in molecules:
-        print(f"{molecule.mol_type}: {Chem.MolToSmiles(molecule.mol)}") # print SMILES string of each molecule
-
-
+        print(f"{molecule.mol_type}: {molecule.smiles()}") # print SMILES string of each molecule
