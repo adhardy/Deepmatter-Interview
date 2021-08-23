@@ -20,10 +20,11 @@ def none_or_equal(value1:any, value2: Any):# -> bool:
         return True
     return False
 
-def get_XML_root(pccr_file_path: str, 
-            tagname: str, 
-            attribute: str = None, 
-            attribute_value: Any = None):
+def get_XML_root(
+    pccr_file_path: str, 
+    tagname: str, 
+    attribute: str = None, 
+    attribute_value: Any = None):
     """Generator: yields XML trees matching the given tag and attribute."""
 
     doc = pulldom.parse(pccr_file_path) # these xml files are very large, use pulldom to extract the parts we need 
@@ -32,7 +33,10 @@ def get_XML_root(pccr_file_path: str,
             doc.expandNode(node) # expand the node so we can parse it with elementree and xpath
             yield ET.fromstring(node.toxml())  # load the xml into elementree
 
-def process_directory(dir: str, funct: Callable[[str, Any], Any], *args, **kwargs):
+def process_directory(
+    dir: str, 
+    funct: Callable[[str, Any], Any], 
+    *args, **kwargs):
     """
     Generator: Runs funct(*args, **kwargs) on all files in the directory.
     

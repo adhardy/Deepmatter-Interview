@@ -35,9 +35,10 @@ class RecipeInformation():
         return f"{self.filename}: {self.name} by {self.author} with {self.operations} operations."
 
 
-def extract_sensor_data(pccr_file_path: str,
-                        sensors: Union[str, List[str]],
-                        stop_after_first: bool = False): # -> pd.DataFrame: # adding the return type hints messes up the syntax highlightning in notebooks in VSCode
+def extract_sensor_data(
+    pccr_file_path: str,
+    sensors: Union[str, List[str]],
+    stop_after_first: bool = False): # -> pd.DataFrame: # adding the return type hints messes up the syntax highlightning in notebooks in VSCode
 
     """Extracts values and timestamps from the given pcrr file and sensor.
     pccr_file_path: Path to the pcrr file
@@ -74,10 +75,12 @@ def extract_sensor_data(pccr_file_path: str,
 
     return data
 
-def plot_sensor_data(df: pd.DataFrame, 
-                    y_label: str = None, 
-                    df2: pd.DataFrame = None, 
-                    y2_label: str = None): # -> plt.Figure: # adding the return type hints messes up the syntax highlightning in notebooks in VSCode
+def plot_sensor_data(
+    df: pd.DataFrame, 
+    y_label: str = None, 
+    df2: pd.DataFrame = None, 
+    y2_label: str = None): # -> plt.Figure: # adding the return type hints messes up the syntax highlightning in notebooks in VSCode
+    
     """Plots sensor data extracted from pcrr file by 'extract_sensor_data'
     df1: Dataframe to plot on first y axis
     y_label: Label for y axis

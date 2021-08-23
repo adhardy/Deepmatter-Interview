@@ -14,7 +14,10 @@ from typing import List
 from dm_RDFParse import DMMol
 
 
-def get_molecular_fingerprints(molecules: List[DMMol], nbits: int, sparse_matrix: bool = True): # -> Union[np.array, csr_matrix]:
+def get_molecular_fingerprints(
+    molecules: List[DMMol], 
+    nbits: int, 
+    sparse_matrix: bool = True): # -> Union[np.array, csr_matrix]:
     """
     Calculates the Morgan fingerprints for a list of molecules.
 
@@ -44,9 +47,12 @@ def get_molecular_fingerprints(molecules: List[DMMol], nbits: int, sparse_matrix
 
     return fingerprints
 
-def get_axes(df: pd.DataFrame, ax: plt.axes, 
-    colour_col: str, marker: str = "o", markersize: int = 12, label_idx: bool = True, colors: List[str] = ["tab:blue", "tab:orange"],
-    switch_xy: bool = False): # -> plt.figure:
+def get_axes(
+    df: pd.DataFrame, ax: plt.axes, 
+    colour_col: str = "label", marker: str = "o", markersize: int = 12, label_idx: bool = True, colors: List[str] = ["tab:blue", "tab:orange"],
+    switch_xy: bool = False): # -> plt.axes:
+
+    """Creates a matplotlib axes object for dimensionality reduction plots."""
 
     if not switch_xy: # use if we want to swap the x and y axis
         col_0 = 0
@@ -73,7 +79,34 @@ def get_axes(df: pd.DataFrame, ax: plt.axes,
 
     return ax
 
-def scree_plot(num_components:int, tSVD: TruncatedSVD, column_names: List[str]):
+def generate_column_names(column_prefix: str, n: int):
+    """Creates a list of strings of a prefix with an increasing integer suffix"""
+    return [f"{column_prefix}{x+1}" for x in range(0,n)] # assign column names
+
+def reduced_dimensions_to_df(
+    reduced_dimensions: np.ndarray, 
+    labels: List[str],
+    column_names:  List[str],
+    n_dimensions: int = None): # -> pd.DataFrame:
+
+    """Converts a numpy array into a dataframe."""
+
+    if n_dimensions is None:
+        n_dimensions = len(reduced_dimensions[0])
+
+    df = pd.DataFrame(reduced_dimensions, columns=column_names)
+    df["label"] = labels
+
+    return df
+
+def scree_plot(
+    num_components:int, 
+    tSVD: TruncatedSVD, 
+    column_names: List[str]):
+    
+    "Plots a scree plot from an sklearn truncated SVD object."
+
+    column_names
     fig, ax = plt.subplots(figsize=(num_components/2,5)) # 1 width per PC seems to work about right
     scree = tSVD.explained_variance_ratio_
     ax.bar(x=range(0,num_components), height=scree, tick_label=column_names)

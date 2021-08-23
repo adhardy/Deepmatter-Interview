@@ -63,7 +63,8 @@ def get_molecules_from_rxn_list(rxn_blocks:list):
     
     return molecules
 
-def print_molecules_from_molecule_list(molecules: List[str]):
-    
+def print_SMILES_from_molecule_list(molecules: List[str]):
+    """Print SMILES string of each molecule in the list."""
+
     for molecule in molecules:
-        print(f"{molecule.mol_type}: {molecule.smiles()}") # print SMILES string of each molecule
+        print(f"{molecule.mol_type}: {molecule.smiles()}")
