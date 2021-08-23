@@ -8,48 +8,65 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
 import pandas as pd
-from typing import List
+from typing import List,Any, Union
+
+pccr_file_ext = ".pcrr"
 
 def check_file_extension(file_path: str, extension: str): # -> bool:
     """Checks if a file has a specific extension"""
-    return pathlib.Path(file_path).suffix == extension
+    if pathlib.Path(file_path).suffix != extension:
+        raise TypeError(f"{file_path} is not a .pccr file.")
 
-def parse_pccr(pccr_dir: List[str]):
-    pccr_file_ext = ".pcrr"
+def none_or_equal(value1:any, value2: any):# -> bool:
+    """Returns True if the values are equal or if either value is None. Otherwise returns False."""
+    if value1 is None or value2 is None or value1 == value2:
+        return True
+    return False
+
+def get_XML_root(pccr_file_path: str, tagname: str, attribute: str = None, attribute_value: Any = None):
+    """Generator: yields XML trees matching the given tag and attribute."""
+
+    doc = pulldom.parse(pccr_file_path) # these xml files are very large, use pulldom to extract the parts we need 
+    for event, node in doc:
+        if event == pulldom.START_ELEMENT and none_or_equal(node.tagName, tagname) and none_or_equal(node.getAttribute(attribute), attribute_value):
+            doc.expandNode(node) # expand the node so we can parse it with elementree and xpath
+            yield ET.fromstring(node.toxml())  # load the xml into elementree
+
+def get_pccr_metadata(pccr_dir: str):
+    """Extract name, author and number of operations from a pccr files located in a directory."""
+
     pccr_files = os.listdir(pccr_dir) # get all files in the directory
     recipe_information = []
 
     for pccr_file in pccr_files: # iterate over each file
 
-        # === Check for correct file type ===
-        if not check_file_extension(pccr_file, pccr_file_ext):
-            print(f"{pccr_file} is not a .pccr file, skipping.")
-            continue
-        
+        check_file_extension(pccr_file, pccr_file_ext) # Check for correct file type
         pccr_file_path = os.path.join(pccr_dir,pccr_file) # get the full path
 
-        # === Parse XML ===
-        doc = pulldom.parse(pccr_file_path) # these xml files are very large, use pulldom to extract the parts we need 
-        for event, node in doc:
-            if event == pulldom.START_ELEMENT and node.tagName == "recipe_version": # all required information is within this tag
-                doc.expandNode(node) # expand the node so we can parse it with elementree and xpath
-                root = ET.fromstring(node.toxml())  # load the xml into elementree
-
-                # use xpath to find recipe name and author
-                name = root.find("./recipe").attrib["name"]
-                author = root.find("./pcml/meta/author").text
-
-                # use xpath to find all operation tags, and then count them
-                operations = len(root.findall("./pcml/step/group/operation"))
-                
-                recipe_information.append({"filename":pccr_file, "name": name, "author": author, "operations": operations})
-
-                break # we don't need any more information, stop processing the file
+        for root in get_XML_root(pccr_file_path, tagname="recipe_version"):
+            
+            name = root.find("./recipe").attrib["name"] # use xpath to find recipe name and author
+            author = root.find("./pcml/meta/author").text
+            operations = len(root.findall("./pcml/step/group/operation")) # use xpath to find all operation tags, and then count them
+            recipe_information.append(RecipeInformation(name, author, operations, pccr_file)) # append the recipe information to a list
+            break # we don't need any more information, stop processing the file
     
     return recipe_information
 
-def extract_sensor_data(pcrr_file_path: str,
-                        sensor_name: str,
+class RecipeInformation():
+    """Class to store recipe information"""
+    def __init__(self, name: str, author: str, operations:int, filename: str):
+        self.name = name
+        self.author = author
+        self.operations = operations
+        self.filename = filename
+
+    def __repr__(self):
+        return f"{self.filename}: {self.name} by {self.author} with {self.operations} operations."
+
+
+def extract_sensor_data(pccr_file_path: str,
+                        sensors: Union[str, List[str]],
                         stop_after_first: bool = False): # -> pd.DataFrame: # adding the return type hints messes up the syntax highlightning in notebooks in VSCode
 
     """Extracts values and timestamps from the given pcrr file and sensor.
@@ -57,38 +74,35 @@ def extract_sensor_data(pcrr_file_path: str,
     sensor_name: The name of the sensor to read data for
     stop_after_first: Defaults to False. Set True to stop parsing the document after the first instance of the sensor is found.
     """
+
+    if not isinstance(sensors, list):
+        sensors = [sensors]
+
+    check_file_extension(pccr_file_path, pccr_file_ext) # Check for correct file type 
     
-    # === Check for correct file type ===
-    pccr_file_ext = ".pcrr"
-    if not check_file_extension(pcrr_file_path, pccr_file_ext):
-        print(f"{pcrr_file_path} is not a .pccr file, aborting.")
-        return None
-
-    sensor_data_value = []
-    sensor_data_timestamp = []
-
+    data = {} # dictionary to hold the extracted data
     # === XML Parsing ===
-    doc = pulldom.parse(pcrr_file_path) # these xml files are very large, use pulldom to extract the parts we need
-    for event, node in doc:
-        if event == pulldom.START_ELEMENT:
-            # could extend this here by iterating over multiple sensors, meaning we would only have to process the xml file once rather than n-sensor times
-            if node.tagName == "sensor_data" and node.getAttribute("name") == sensor_name: # find the sensor_data tag with the name attribute of the sensor we're interested in
-                doc.expandNode(node) # expand the node so we can parse it with elementree and xpath
-                root = ET.fromstring(node.toxml()) # load the xml into elementree
+    for sensor_name in sensors:
+        sensor_data_value = []
+        sensor_data_timestamp = []
+        for root in get_XML_root(pccr_file_path, tagname="sensor_data", attribute="name", attribute_value=sensor_name):
 
-                # find all instances of the sensor_data_record tag within this node, record the values and timestamps
-                sensor_data_value += [x.text for x in root.findall("./sensor_data_record/value")] 
-                sensor_data_timestamp += [x.text for x in root.findall("./sensor_data_record/timestamp")]
+            # find all instances of the sensor_data_record tag within this node, record the values and timestamps
+            sensor_data_value += [x.text for x in root.findall("./sensor_data_record/value")] 
+            sensor_data_timestamp += [x.text for x in root.findall("./sensor_data_record/timestamp")]
 
-                if stop_after_first: # sensor data is present in mutliple nodes. If set, stop parsing after the first instance of the target tag, useful for debugging/demo purposes as it is otherwise quite slow because of the large file size
-                    break
+            if stop_after_first: # sensor data is present in mutliple nodes. If set, stop parsing after the first instance of the target tag, useful for debugging/demo purposes as it is otherwise quite slow because of the large file size
+                break
 
-    # === Create Dataframe ===
-    df = pd.DataFrame(data={sensor_name: sensor_data_value, "timestamp": sensor_data_timestamp}) #convert to a dataframe
-    df = df.astype({sensor_name: float, "timestamp": "datetime64[ns]"}) # set datatypes
-    df.set_index("timestamp", inplace=True) # set the timestamp as the index
+        # === Create Dataframe ===
+        df = pd.DataFrame(data={sensor_name: sensor_data_value, "timestamp": sensor_data_timestamp}) #convert to a dataframe
+        df = df.astype({sensor_name: float, "timestamp": "datetime64[ns]"}) # set datatypes
+        df.set_index("timestamp", inplace=True) # set the timestamp as the index
+        df.sort_index(inplace=True) # sort the dataframe
     
-    return df
+        data[sensor_name] = df # add the sensor data to the data dictionary
+
+    return data
 
 def plot_sensor_data(df: pd.DataFrame, 
                     y_label: str = None, 
@@ -101,7 +115,7 @@ def plot_sensor_data(df: pd.DataFrame,
     y2_label: Label for second y axis"""
     
     fig, axs = plt.subplots()
-        
+
     df.plot(ax=axs,
             xlabel="Date/Time", 
             ylabel=y_label) 
