@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 
 from scipy.sparse import csr_matrix
 from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import scale
 
 from typing import List
 
@@ -91,6 +93,8 @@ def reduced_dimensions_to_df(
 
     """Converts a numpy array into a dataframe."""
 
+    print(n_dimensions)
+
     if n_dimensions is None:
         n_dimensions = len(reduced_dimensions[0])
 
@@ -113,3 +117,27 @@ def scree_plot(
     ax.set_ylabel("Explained Variance (%)")
     ax.set_xlabel("Principal Components")
     return fig
+
+def plot_n_dimensional_kmeans(df: pd.DataFrame, ax: plt.axes):
+    
+    n_components=2 # always 2 for 2D plot
+
+    # ===standardize data ===
+    X = df.drop("label", axis=1)
+    X = scale(X)
+    
+    # === PCA to visualise data in 2D ===
+    pca = PCA(n_components=n_components)
+    X = pca.fit_transform(X)
+
+    # === Plot 2D Scatterplot ===
+    cluster_labels = df["label"].to_list()
+    column_names = generate_column_names("PC", n_components)
+    df_pca = reduced_dimensions_to_df(
+        X, cluster_labels, 
+        column_names, 
+        n_dimensions=n_components)
+    
+    ax = get_axes(df_pca, ax, colors=["red", "blue", "green", "yellow", "orange"])
+    
+    return ax
